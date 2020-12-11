@@ -10,3 +10,5 @@ Unfortunately, it looks like there's no `xor` function, according to the Dybvig 
 Since it looks like I'm going to have a long expression going, I implemented a quick and dirty `xor` function.
 
 I had a small bump with 1-indexing: to convert from 1-indexed to 0-indexed, I _subtract_ 1, not add. I tried the other way round and wondered why I was getting out of bounds errors. Oops.
+
+After fixing that, it seems to work.

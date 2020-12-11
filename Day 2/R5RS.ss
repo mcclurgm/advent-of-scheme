@@ -18,6 +18,12 @@
 (define accumulate-char
   (lambda (ch lst)
     (accumulate-char-tail ch lst 0)))
+(define accumulate-char-map
+  (lambda (ch lst)
+    (let ((iter-at-char
+            (lambda (test)
+              (if (char=? test ch) 1 0))))
+      (apply + (map iter-at-char lst)))))
 
 ;; Given a password spec string "(\d+)-(\d+) (\w): (\w+)", tells whether it
 ;; matches the spec.
@@ -30,6 +36,16 @@
            (ch (string-ref (caddr match) 0))
            (str-list (string->list (cadddr match)))
            (n (accumulate-char ch str-list)))
+      (and (>= n min-n) (<= n max-n)))))
+(define password-valid-map?
+  (lambda (password-str)
+    (let* ((re (pregexp "(\\d+)-(\\d+) (\\w): (\\w+)"))
+           (match (cdr (regexp-match re password-str)))
+           (min-n (string->number (car match)))
+           (max-n (string->number (cadr match)))
+           (ch (string-ref (caddr match) 0))
+           (str-list (string->list (cadddr match)))
+           (n (accumulate-char-map ch str-list)))
       (and (>= n min-n) (<= n max-n)))))
 
 ;; A quick-and-dirty xor. It only works for 2 bools, so don't pass 
@@ -63,5 +79,7 @@
             (cons val (lines-from-file input))))))
 (length (filter (lambda (v) v)
                 (map password-valid-1? (lines-from-filename "input.txt"))))
+(length (filter (lambda (v) v)
+                (map password-valid-map? (lines-from-filename "input.txt"))))
 (length (filter (lambda (v) v)
                 (map password-valid-2? (lines-from-filename "input.txt"))))

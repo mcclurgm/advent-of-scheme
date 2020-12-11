@@ -21,7 +21,7 @@
 
 ;; Given a password spec string "(\d+)-(\d+) (\w): (\w+)", tells whether it
 ;; matches the spec.
-(define password-valid?
+(define password-valid-1?
   (lambda (password-str)
     (let* ((re (pregexp "(\\d+)-(\\d+) (\\w): (\\w+)"))
            (match (cdr (regexp-match re password-str)))
@@ -31,6 +31,16 @@
            (str-list (string->list (cadddr match)))
            (n (accumulate-char ch str-list)))
       (and (>= n min-n) (<= n max-n)))))
+
+(define password-valid-2?
+  (lambda (password-str)
+    (let* ((re (pregexp "(\\d+)-(\\d+) (\\w): (\\w+)"))
+           (match (cdr (regexp-match re password-str)))
+           (min-n (string->number (car match)))
+           (max-n (string->number (cadr match)))
+           (ch (string-ref (caddr match) 0))
+           (str-list (string->list (cadddr match)))
+           (n (accumulate-char ch str-list))))))
 
 ;; basic file I/O
 (define lines-from-filename

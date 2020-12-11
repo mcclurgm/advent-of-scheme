@@ -1,5 +1,4 @@
-(define test-data (list 1721 979 366 299 675 1456))
-(define test-3 (list 979 4321 366 1721 979 366 299 675 1456))
+;; This one does work with R5RS!
 
 (define add-valid
   (lambda (x y)
@@ -75,3 +74,6 @@
         (if (eof-object? val)
             '()
             (cons val (list-from-file input))))))
+
+(add-list-2 (list-from-filename "input.txt"))
+(add-list-3 (list-from-filename "input.txt"))

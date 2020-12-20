@@ -1,4 +1,6 @@
-;; Requires Pretty Big dialect (for the range function only).
+#lang racket
+;; Requires Racket (for the range and curry functions).
+;; I could fix this, but I don't feel like it right now.
 
 ;; Tells whether the character in the map is a "tree".
 ;; Given a line (the string that defines the line),
@@ -13,12 +15,49 @@
             1
             0))))
 
-(define number-of-trees
+;; Gets the number of trees you'd encounter in the map, for a 
+;; hard-coded slope of down 1, over 3.
+(define number-of-trees-1
   (lambda (map-lines)
     (let* ((indices (map (curry * 3)
                          (range 0 (length map-lines))))
            (trees (map is-tree map-lines indices)))
       (apply + trees))))
+
+;; For part 2: since vertical component of slope varies, I need to filter down
+;; the list to be only the lines I will actually use
+(define every-nth-helper
+  (lambda (lst use? index)
+    (if (null? lst)
+        lst
+        (let ((next-index (+ index 1))
+              (next-lst (cdr lst)))
+          (if (use? index)
+              (cons (car lst) (every-nth-helper next-lst use? next-index)) ; (Not tail recursive)
+              (every-nth-helper next-lst use? next-index))))))
+;; Gets every nth element of lst, starting with start.
+(define every-nth
+  (lambda (lst n start)
+    (let* ((use? (lambda (index)
+                   (and (zero? (modulo (- index start) n))
+                        (>= index start)))))
+      (every-nth-helper lst use? 0))))
+      
+;; Gets the number of trees you'd encounter in the map.
+;; This uses a user-defined slope of down v, over h.
+(define number-of-trees-2
+  (lambda (lines v h)
+    (let* ((filtered-lines (every-nth lines v 0)) ; Every line the vertical component of the slope will hit
+           (indices (map (curry * h)
+                     (range 0 (length filtered-lines))))
+           (trees (map is-tree filtered-lines indices)))
+      (apply + trees))))
+
+(define multiply-slopes
+  (lambda (slopes lines)
+    (let* ((trees-for-slope (curry number-of-trees-2 lines))
+           (trees-in-map (curry apply trees-for-slope)))
+      (apply * (map trees-in-map slopes)))))
 
 ;; basic file I/O
 (define lines-from-filename
@@ -32,4 +71,7 @@
             (cons val (lines-from-file input))))))
 
 ; Run part 1
-(number-of-trees (lines-from-filename "input.txt"))
+(number-of-trees-1 (lines-from-filename "input.txt"))
+(number-of-trees-2 (lines-from-filename "input.txt") 2 1) ; -> 2
+(define slopes '((1 1) (1 3) (1 5) (1 7) (2 1)))
+(multiply-slopes slopes (lines-from-filename "input.txt"))

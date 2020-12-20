@@ -123,3 +123,129 @@ This is correct! Seems to work for part 1 now. Now all I need to do is set it up
 (number-of-trees (lines-from-filename "input.txt"))
 ```
 I get 169 from this. It's correct!
+
+## Part 2
+As I suspected, the new version is to check a variety of slopes. Unfortunately for me, this includes going multiple lines at a time, so I can't simply `map` my function to each line and consider that the total.
+
+I need to figure out how to get every second element of the input list. Without changing the asymptotics of this algorithm, I could simply iterate through it and construct a list of every second element. This would be 2n iterations through the input lines, but that's "the same as" the n/2 iterations that I would do in an imperative, array-based language. It's not quite efficient, but it's probably workable. I would have to roll my own every-n-elements function. Alternatively, I could just convert the list of lines to a vector and run it with indices, like I would expect in an imperative language. I don't know how to do this well and idiomatically (it feels like it should be a `map` or `fold` again, but I don't know how best to go about it).
+
+Well, I returned to the drawing board and made myself an `every-nth` function. It's not tail-recursive (at least every time), so it's not great, but it does work! Here it is:
+```scheme
+(define every-nth-helper
+  (lambda (lst use? index)
+    (if (null? lst)
+        lst
+        (let ((next-index (+ index 1))
+              (next-lst (cdr lst)))
+          (if (use? index)
+              (cons (car lst) (every-nth-helper next-lst use? next-index)) ; (Not tail recursive)
+              (every-nth-helper next-lst use? next-index))))))
+
+;; Gets every nth element of lst, starting with start.
+(define every-nth
+  (lambda (lst n start)
+    (let* ((use? (lambda (index)
+                   (and (zero? (modulo (- index start) n))
+                        (>= index start)))))
+      (every-nth-helper lst use? 0))))
+```
+
+Now that I have this, I can do this properly! (I hope.)
+
+Let's now do what I should have from the start. What will the function need to look like? My current function signature is `(number-of-trees-1 lines)`, where the iteration with each line is hard-coded. I'll need to do something like `(number-of-trees-2 lines vertical horizontal)`, where `vertical` and `horizontal` are the components of the slope. This makes sense, I think.
+
+A slope of `v,h` means that every time I go down `v`, I go across `h`. This is convenient for my filtering method: once I get filtered down to every `v`th line, I will go across by `h` every time in the filtered list. Just like before! It's a little too abstracted from the idea of slopes for my taste, which means it's far less expressive. But I'll soldier on for a while, and see if I can get this method to work. It's much less change from before.
+
+What do I need to change? First order of business is getting the proper set of lines. This means filtering the lines down to the ones that I'll actually hit with my vertical slope.
+
+I start by copying the implementation from before, with the modified signature. If I call this, it should produce the same value as before:
+```scheme
+(define number-of-trees-2
+  (lambda (lines v h)
+    (let* ((indices (map (curry * 3)
+                         (range 0 (length map-lines))))
+           (trees (map is-tree map-lines indices)))
+      (apply + trees))))
+```
+First issue. I forgot that I renamed `map-lines` to `lines` (which I think is a better name), so I fixed that. And then, indeed, it dutifully gives me the same answer as before.
+
+I can now add a new binding to the `let*` form, for the filtered lines. (And a hopefully helpful comment that will at least alleviate the weird unintuitiveness of this code.) Then I use this filtered list in the original code. After some battle with parinfer, which doesn't seem to want to use the right indentation levels, my code looks like this:
+```scheme
+(define number-of-trees-2
+  (lambda (lines v h)
+    (let* ((indices (map (curry * 3)
+                         (range 0 (length lines))))
+           (filtered-lines (every-nth lines v 0)) ; Every line the vertical component of the slope will hit
+           (trees (map is-tree filtered-lines indices)))
+      (apply + trees))))
+```
+After realizing that I had been testing this on `v,h=1,1` which won't actually test the vertical slope, I found out that I need to do a little more reorganizing. `indices` is defined by the length of `lines`, while it should be defined by `filtered-lines`. This is because each new index corresponds to the next line that we land on. So I move the binding for `filtered-lines` up to the top, and try again. (Note to self: parinfer is a little finicky when it comes to reorganizing lines. If it or Atom makes a line indented too little, and I go to fix it, all the following lines will be indented to match. Not sure how to get around this, other than if I could just turn it off temporarily, but I don't know how to do this with the Atom version.) When applied to the test data we're given, I get the right answer! (For neglecting `h`, for the moment)
+```scheme
+(define test-lines '("..##......."
+                     "#...#...#.."
+                     ".#....#..#."
+                     "..#.#...#.#"
+                     ".#...##..#."
+                     "..#.##....."
+                     ".#.#.#....#"
+                     ".#........#"
+                     "#.##...#..."
+                     "#...##....#"
+                     ".#..#...#.#"))
+(define number-of-trees-2
+  (lambda (lines v h)
+    (let* ((filtered-lines (every-nth lines v 0)) ; Every line the vertical component of the slope will hit
+           (indices (map (curry * 3)
+                     (range 0 (length filtered-lines))))
+           (trees (map is-tree filtered-lines indices)))
+      (display filtered-lines)
+      (apply + trees))))
+(number-of-trees-2 test-lines 2 1) ; -> 2, note 1 is ignored for 3
+```
+
+Now I just need to use `h`. This is pretty simple, since I just replace the hard-coded 3 with a reference to it. This works!
+```scheme
+(define number-of-trees-2
+  (lambda (lines v h)
+    (let* ((filtered-lines (every-nth lines v 0)) ; Every line the vertical component of the slope will hit
+           (indices (map (curry * h)
+                     (range 0 (length filtered-lines))))
+           (trees (map is-tree filtered-lines indices)))
+      (apply + trees))))
+(number-of-trees-2 test-lines 2 1) ; -> 2, for real this time
+```
+
+So I try it out on the real input and... it doesn't work. I completely forgot what the new problem is, and didn't do all the slopes it wanted me to. So now to complete the new problem.
+
+I need a function to multiply the slopes together. So time to make it. Well actually, I don't need a full function for this, unless I want to try a variety of slopes for fun. So I guess I'll make it anyway.
+
+This may take a bit more engineering than I wanted. I want to be able to do a similar thing to before: `(apply * (map func slopes))`, where `slopes` is a list of `(v h)` pairs (as proper lists) and `func` is some magical function that does exactly what I want. Time to find out what that is, I guess.
+
+In order to be able to map `func`, I need to make it so `func` can accept only one argument that's the pair of slopes. So this sounds like a job for currying! (This isn't in rnrs, but I'm already using a fancier dialect for `range`, and I used `curry` before without double checking where it's available. So time to update the header comment and just use Racket.) What do I need to do? The function needs to accept the pair only. So it needs to have the lines built in. This implies `(curry number-of-trees-2 lines ...)`. Then to get the pair into `number-of-trees-2` I need to use `apply`. So I can then `apply` this function to the pair. But how do I do this, when I'm using `map`? I guess I can do two levels of currying, just for fun.
+```scheme
+(curry apply (curry number-of-trees-2 lines))
+```
+Indeed this works! It's super weird, but it works. Theme of the day. I guess if I start to learn to write better Scheme, I can come back to this to see just how far I've come. As a small stop-gap, I can at least use `let*` to descriptively name parts of this:
+```scheme
+(define multiply-slopes
+  (lambda (slopes lines)
+    (let* ((trees-for-slope (curry number-of-trees-2 lines))
+           (trees-in-map (curry apply trees-for-slope)))
+      (apply * (map trees-in-map slopes)))))
+```
+
+I run this new function. However, I get the following error:
+```scheme
+> (define slopes '('(1 1) '(1 3) '(1 5) '(1 7) '(2 1)))
+> (multiply-slopes slopes (lines-from-filename "input.txt"))
+modulo: contract violation
+  expected: integer?
+  given: 'quote
+  argument position: 2nd
+  other arguments...:
+   0
+  context...:
+   /home/michael/Documents/Lisp/Advent of Code/Day 3/day-3.ss:61:2: number-of-trees-2
+   "/home/michael/Documents/Lisp/Advent of Code/Day 3/day-3.ss": [running body]
+```
+This is a pretty confusing error. By a stroke of luck though, I notice that it mentions 'quote, and I see that my original input has too many quotes! I remove the quotes on the inside of the list and it works. Result is 7560370818. And it's correct!

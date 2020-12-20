@@ -26,22 +26,30 @@
 
 ;; For part 2: since vertical component of slope varies, I need to filter down
 ;; the list to be only the lines I will actually use
-(define every-nth-helper
-  (lambda (lst use? index)
+;; For part 2: since vertical component of slope varies, I need to filter down
+;; the list to be only the lines I will actually use
+(define every-nth-tail
+  (lambda (lst use? index result)
     (if (null? lst)
-        lst
+        result
         (let ((next-index (+ index 1))
               (next-lst (cdr lst)))
           (if (use? index)
-              (cons (car lst) (every-nth-helper next-lst use? next-index)) ; (Not tail recursive)
-              (every-nth-helper next-lst use? next-index))))))
+              (every-nth-tail next-lst
+                              use?
+                              next-index
+                              (cons (car lst) result))
+              (every-nth-tail next-lst
+                              use?
+                              next-index
+                              result))))))
 ;; Gets every nth element of lst, starting with start.
 (define every-nth
   (lambda (lst n start)
     (let* ((use? (lambda (index)
                    (and (zero? (modulo (- index start) n))
                         (>= index start)))))
-      (every-nth-helper lst use? 0))))
+      (every-nth-tail lst use? 0 '()))))
       
 ;; Gets the number of trees you'd encounter in the map.
 ;; This uses a user-defined slope of down v, over h.

@@ -249,3 +249,66 @@ modulo: contract violation
    "/home/michael/Documents/Lisp/Advent of Code/Day 3/day-3.ss": [running body]
 ```
 This is a pretty confusing error. By a stroke of luck though, I notice that it mentions 'quote, and I see that my original input has too many quotes! I remove the quotes on the inside of the list and it works. Result is 7560370818. And it's correct!
+
+## Part 2 Enhancements
+### Tail-recursive `every-nth`
+
+While my solution works, it would be nice to get `every-nth` to work with tail recursion to make this more efficient. I'll give it a try.
+
+My current solution is very close to tail-recursive. Both of the expressions in the `(if (use? index))` form are in tail position. The only thing is that it's the `cons` expression that's tail. So I should be able to call a hypothetical `every-nth-tail` with an argument that's the so-far-current version, and run the `cons` on the argument to that.
+
+After fooling around with it a bit, I wind up with:
+```scheme
+;; For part 2: since vertical component of slope varies, I need to filter down
+;; the list to be only the lines I will actually use
+(define every-nth-tail
+  (lambda (lst use? index result)
+    (if (null? lst)
+        lst
+        (let ((next-index (+ index 1))
+              (next-lst (cdr lst)))
+          (if (use? index)
+              (every-nth-tail next-lst
+                              use?
+                              next-index
+                              (cons (car lst) result))
+              (every-nth-tail next-lst
+                              use?
+                              next-index
+                              result))))))
+;; Gets every nth element of lst, starting with start.
+(define every-nth
+  (lambda (lst n start)
+    (let* ((use? (lambda (index)
+                   (and (zero? (modulo (- index start) n))
+                        (>= index start)))))
+      (every-nth-tail lst use? 0 '()))))
+```
+
+This doesn't work at all. It returns an empty list. I realized a potential solution: I was still returning an empty list in the base case, like I was building the result on my way back up from the base case, instead of on the way down. The proper way to do this is to return the fully-built list in the base case. The result then looks like this:
+```scheme
+;; For part 2: since vertical component of slope varies, I need to filter down
+;; the list to be only the lines I will actually use
+(define every-nth-tail
+  (lambda (lst use? index result)
+    (if (null? lst)
+        result
+        (let ((next-index (+ index 1))
+              (next-lst (cdr lst)))
+          (if (use? index)
+              (every-nth-tail next-lst
+                              use?
+                              next-index
+                              (cons (car lst) result))
+              (every-nth-tail next-lst
+                              use?
+                              next-index
+                              result))))))
+;; Gets every nth element of lst, starting with start.
+(define every-nth
+  (lambda (lst n start)
+    (let* ((use? (lambda (index)
+                   (and (zero? (modulo (- index start) n))
+                        (>= index start)))))
+      (every-nth-tail lst use? 0 '()))))
+```

@@ -312,3 +312,90 @@ This doesn't work at all. It returns an empty list. I realized a potential solut
                         (>= index start)))))
       (every-nth-tail lst use? 0 '()))))
 ```
+
+### Use vectors and make slope more expressive
+My current method of skipping every few elements of the array doesn't make this particularly readable. I'm going to give it a try by making the map into a vector and accessing it by index. I hope that using indices will make the iteration a little more clear.
+
+First, I need to decide how to iterate through the slopes. I could do this with recursion, or I could do it with `map`. I think the expressive solution in terms of the iteration would probably be recursion, while I generally prefer `map` to making recursion schemes.
+
+I'm not doing this in a very designed way. I've started with a couple of random utility functions which I hope will match what I eventually want. Here they are:
+```scheme
+;; Given an initial position (h,v) and a slope dv/dh, finds the next
+;; "iteration" of the slope by going up dv and over dh.
+;; Returns the new position as (values new-v new-h).
+(define iterate-slope
+  (lambda (v h dv dh)
+    (values (+ v dv) (+ h dh))))
+;; Finds the position (h,v) that results from going n whole increments
+;; of the slope dv/dh from the origin.
+;; Returns the new position as (values new-v new-h).
+(define nth-slope
+  (lambda (dv dh n)
+    (values (* dv n) (* dh n))))
+(define tree-at
+  (lambda (lines v h)
+    (let* ((line (vector-ref lines v)))
+      (if (is-tree? line h) 1 0))))
+```
+
+Let's try thinking about this a little more closely. I'm going to stick with recursion for now. The initial data is a set of lines (which I won't modify, but index instead), a slope, and an initial position (which can be implicitly (0,0)). With every iteration, I want to get the tree at the current position and iterate the position to the next one. I will also want to increment a running counter, so that I can make this tail-recursive. I'll do all this calculation in a `let*` form (sort of as usual). So with that, here's what I've got:
+```scheme
+;; Given a set of lines (which won't change),
+;; the slope dv/dh,
+;; the position (h,v),
+;; and the current number of trees
+;; checks whether the current iteration is a tree
+(define number-of-trees-3r-helper
+  (lambda (lines dv dh v h trees)
+    (let* ((tree (tree-at lines v h))
+           (new-trees (+ trees tree))
+           (next-v (+ v dv))
+           (next-h (+ h dh)))
+      (number-of-trees-3r-helper lines dv dh next-v next-h new-trees))))
+      
+(number-of-trees-3r-helper (list->vector (lines-from-filename "input.txt")) 2 1 0 0 0) ; -> 2
+```
+
+I apparently forgot a base case. Yikes! The base case is if `v` is off the end of the map. So that's if `(>= v (vector-length lines))`. Time to add a if statement to this. It's now:
+```scheme
+;; Given a set of lines (which won't change),
+;; the slope dv/dh,
+;; the position (h,v),
+;; and the current number of trees
+;; checks whether the current iteration is a tree
+(define number-of-trees-3r-helper
+  (lambda (lines dv dh v h trees)
+    (if (>= v (vector-length lines))
+        trees ; Base case: left the end of the map, so we're done.
+        (let* ((tree (tree-at lines v h))
+               (new-trees (+ trees tree))
+               (next-v (+ v dv))
+               (next-h (+ h dh)))
+          (number-of-trees-3r-helper lines dv dh next-v next-h new-trees)))))
+```
+
+I get 20 when I should have 7. So this is not working. I don't know why. Time to do some print debugging. Apparently this says that every line it accesses reaches a tree. I now remember that is-tree returns 0 or 1, not `#f` or `#t`. So my `if` check in `tree-at` is totally wrong, and it'll always return 1, since both integers are "true". So I remove the if and try again:
+```scheme
+(define tree-at
+  (lambda (lines v h)
+    (let* ((line (vector-ref lines v)))
+      (is-tree line h))))
+```
+
+Now I get 7. This is correct! So let's package it up in the wrapper function and see if it works. (And also get rid of the hypothetical map version, so I can simplify the names a bit.)
+```scheme
+(define number-of-trees-3
+  (lambda (lines dv dh)
+    (number-of-trees-3-helper lines dv dh 0 0 0))); stuff goes here
+(define multiply-slopes-3
+  (lambda (slopes lines)
+    (let* ((trees-for-slope (curry number-of-trees-3 lines))
+           (trees-in-map (curry apply trees-for-slope)))
+      (apply * (map trees-in-map slopes)))))
+(multiply-slopes-3 slopes (list->vector (lines-from-filename "input.txt"))) ; -> 7560370818
+```
+I get 7275073806, which is definitely wrong. Time to debug again I guess? I guess that it's because the wrapping isn't working properly, so I add more lines to my test input so that it wraps around. But that works.
+
+Actually, the answer is that I messed up the input file. (Thanks Atom.) Once I fixed it, I got the right answer, and everything is right in the world.
+
+I do think this is a little more understandable.

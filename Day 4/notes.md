@@ -227,6 +227,12 @@ Ok, so it turns out that I had a whole bunch of dangling references to variables
 
 Yikes. That was a bit of a time. I have a lot to learn about how to write these sorts of things. I learned this round that my general method of "trial-and-error this function, then wrap it up in something else" is super prone to errors, since I can do things like forget to change the name of a testing variable all the time. I should probably adapt that method to define the final function from the start, then calling that function, instead of relying on the REPL. Another thing that I found out when looking at `accumulate-fields` is that I should be able to decently easily swap out my accumulator recursion scheme for a combination of `map` and `apply`. In the typical case where I accumulate by `+`, it would be super easy to generalize. But I can also define it as a higher-order function. Or is it possible that this is what `fold` is for? I feel like I haven't really unlocked the power of `fold`. I just can't wrap my head around how to make it accumulate easily.
 
-Just for fun, I want to give `accumulate-fields` a second try. With the `count-true` that I just defined, it becomes pretty trivial: `(count-true (map accumulate-field? full-entries))`. I could pretty easily write a higher-order function based around this structure that counts the number of elements of a list that match some criterion. Maybe I'll give that a shot at some point, since I seem to be using that sort of structure an awful lot.
+Just for fun, I want to give `accumulate-fields` a second try. With the `count-true` that I just defined, it becomes pretty trivial: `(count-true (map accumulate-field? full-entries))`. I could pretty easily write a higher-order function based around this structure that counts the number of elements of a list that match some criterion. Maybe I'll give that a shot at some point, since I seem to be using that sort of structure an awful lot. At any rate, here's what `accumulate-fields` looks like now:
+```scheme
+(define accumulate-fields
+  (lambda (fields)
+    (count-true (map accumulate-field? fields))))
+```
+Much better, right?
 
-For a bit of random reflection on Lisp: I think that this challenge helped me quite a bit in writing better Lisp code, especially things like rewriting the iterator.
+For a bit of random reflection on Lisp: I think that this challenge helped me quite a bit in writing better Lisp code, especially things like rewriting the iterator. The higher-order functions like `map` are what drew me to Lisp in the first place (along with the idea of immutability), so it makes sense that I like writing and reading my code a lot more when my code works that way. I don't like recursion schemes, but I love functions! And `map`ing uniquely matches the way my brain works.

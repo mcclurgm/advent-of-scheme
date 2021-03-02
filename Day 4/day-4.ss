@@ -27,6 +27,17 @@ iyr:2011 ecl:brn hgt:59in")
             '()
             (cons val (lines-from-file input))))))
 
+;; General utilities
+(define sum
+  (lambda (lst)
+    (apply + lst)))
+
+(define count-true
+  (lambda (lst)
+    (let ((convert-bool
+            (lambda (x) (if x 1 0))))
+      (sum (map convert-bool lst)))))
+
 (define canonize-data
   (lambda (data-lines)
     (let* ((canonize-entries-accum
@@ -52,8 +63,14 @@ iyr:2011 ecl:brn hgt:59in")
         (split-entry 
           (canonize-entries
             data-lines))))))
+; This should be equivalent to
+; (-> data-lines
+;     canonize-entries
+;     split-entry
+;     (map split-field))
+; if I had that macro. (That's much more readable.)
 
-; The fields that must be in each entry for it to be valid. (Since
+;; The fields that must be in each entry for it to be valid. (Since
 ; we don't care about cid, I'm ignoring it for this purpose)
 (define check-fields '("byr" "iyr" "eyr" "hgt" "hcl" "ecl" "pid"))
 
@@ -64,28 +81,11 @@ iyr:2011 ecl:brn hgt:59in")
 
 (define accumulate-fields
   (lambda (fields)
-    (letrec ((helper
-              (lambda (fields accum)
-                (if (null? fields) accum
-                    (let ((iter (if (accumulate-field? (car fields))
-                                    1
-                                    0)))
-                      (helper (cdr fields) (+ accum iter)))))))
-      (helper fields 0))))
+    (count-true (map accumulate-field? fields))))
 
 (define valid-entry?
   (lambda (entry)
     (>= (accumulate-fields entry) 7)))
-
-(define sum
-  (lambda (lst)
-    (apply + lst)))
-
-(define count-true
-  (lambda (lst)
-    (let ((convert-bool
-            (lambda (x) (if x 1 0))))
-      (sum (map convert-bool lst)))))
 
 (define count-valid-entries
   (lambda (entries)

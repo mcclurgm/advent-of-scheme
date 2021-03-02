@@ -1,7 +1,6 @@
-;; This uses regular expressions, which are not a part of RnRS Scheme. It's
-;; tested in DrRacket's "Pretty Big" PLT language, which has a much bigger
-;; library. However, the syntax should be compatible with Alex Shinn's
-;; "IrRegular Expressions" library, which is compatible with R5RS and above.
+;; This uses some bits of Racket's library that aren't part of any standard
+;; Scheme. Particularly, I use string-split, because it's just so much easier
+;; than writing string functions like that by hand.
 
 (define test-input "ecl:gry pid:860033327 eyr:2020 hcl:#fffffd
 byr:1937 iyr:2017 cid:147 hgt:183cm
@@ -27,39 +26,6 @@ iyr:2011 ecl:brn hgt:59in")
         (if (eof-object? val)
             '()
             (cons val (lines-from-file input))))))
-
-(define test-lines (lines-from-filename "test-input.txt"))
-(pretty-print test-lines)
-
-; (define canonize-entries-accum
-;   (lambda (line entries)
-;     (if (= (string-length line) 0)
-;         (cons "" entries) ; Create a new entry
-;         (cons (string-append (car entries) " " line)
-;               (cdr entries))))) ; Append to the current entry
-
-; (define canonize-entries 
-;   (lambda (lines)
-;     (foldr canonize-entries-accum (list "") lines)))
-; (define entries (canonize-entries test-lines))
-; entries
-
-; (define split-map
-;   (lambda (strings delimiter)
-;     (map (lambda (s) (string-split s delimiter))
-;          strings)))
-; 
-; (define test (split-map entries " "))
-; (pretty-print test)
-
-; (caar test)
-; (string-split (caar test) ":")
-; (map (lambda (strings) (split-map strings ":")) test)
-; ; (split-map test ":")
-; (define split-field
-;   (lambda (field)
-;     (split-map field ":")))
-; (map split-field test)
 
 (define canonize-data
   (lambda (data-lines)
@@ -87,11 +53,6 @@ iyr:2011 ecl:brn hgt:59in")
           (canonize-entries
             data-lines))))))
 
-(define parsed-entries (canonize-data test-lines))
-
-(define test-entry (cadr parsed-entries))
-(pretty-print test-entry)
-
 ; The fields that must be in each entry for it to be valid. (Since
 ; we don't care about cid, I'm ignoring it for this purpose)
 (define check-fields '("byr" "iyr" "eyr" "hgt" "hcl" "ecl" "pid"))
@@ -111,17 +72,10 @@ iyr:2011 ecl:brn hgt:59in")
                                     0)))
                       (helper (cdr fields) (+ accum iter)))))))
       (helper fields 0))))
-(define test2 (cdddr test-entry))
-(displayln test2)
-(displayln (accumulate-fields test2))
-(displayln (map accumulate-fields parsed-entries))
-
 
 (define valid-entry?
   (lambda (entry)
     (>= (accumulate-fields entry) 7)))
-(valid-entry? test-entry)
-(map valid-entry? parsed-entries)
 
 (define sum
   (lambda (lst)
@@ -133,14 +87,8 @@ iyr:2011 ecl:brn hgt:59in")
             (lambda (x) (if x 1 0))))
       (sum (map convert-bool lst)))))
 
-(count-true (map valid-entry? parsed-entries))
-
 (define count-valid-entries
   (lambda (entries)
     (count-true (map valid-entry? entries))))
-
-(map valid-entry? (canonize-data (lines-from-filename "input.txt")))
-
-(pretty-print (canonize-data (lines-from-filename "input.txt")))
 
 (count-valid-entries (canonize-data (lines-from-filename "input.txt")))
